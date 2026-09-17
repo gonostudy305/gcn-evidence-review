@@ -25,6 +25,7 @@ import {
   ExternalLink,
   Upload,
   Loader2,
+  Layers,
 } from "lucide-react";
 
 const MAX_BATCH_FILES = 20;
@@ -41,6 +42,7 @@ export default function KiemTraGcnPage() {
 
   const [notification, setNotification] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"compare" | "metadata">("compare");
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   const intakeEpoch = useRef(0);
 
@@ -337,8 +339,17 @@ export default function KiemTraGcnPage() {
             })}
           </div>
 
-          {/* Sidebar Footer: Dropzone strip & Clear All */}
-          <div className="p-2.5 border-t border-[#E8EEF3] bg-[#F8FAFC] space-y-2">
+          {/* Sidebar Footer: Primary Batch Actions + Dropzone + Clear All */}
+          <div className="p-3 border-t border-[#E8EEF3] bg-[#F8FAFC] space-y-2">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl bg-[#00AEEF] text-white hover:bg-[#0098D4] shadow-2xs transition-colors cursor-pointer"
+              title="In biên bản rà soát toàn bộ danh sách hoặc lưu PDF"
+            >
+              <Printer className="w-3.5 h-3.5" /> In biên bản thẩm định ({items.length})
+            </button>
+
             <div
               onClick={() => hiddenInputRef.current?.click()}
               className="border border-dashed border-[#BCEBFA] hover:border-[#00AEEF] hover:bg-white bg-[#E8F7FD]/30 rounded-xl p-2 text-center cursor-pointer transition-colors"
@@ -348,13 +359,24 @@ export default function KiemTraGcnPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={clearFiles}
-              className="w-full text-center py-1 text-xs text-[#94A3B8] hover:text-red-600 transition-colors"
-            >
-              Xóa tất cả danh sách
-            </button>
+            <div className="flex items-center justify-between pt-0.5">
+              <button
+                type="button"
+                onClick={handleExportMarkdown}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#003366] hover:text-[#0077B6] transition-colors cursor-pointer"
+                title="Tải báo cáo tổng kết Markdown"
+              >
+                <FileText className="w-3 h-3 text-[#00AEEF]" /> Xuất báo cáo (.md)
+              </button>
+
+              <button
+                type="button"
+                onClick={clearFiles}
+                className="text-[11px] text-[#94A3B8] hover:text-red-600 transition-colors cursor-pointer"
+              >
+                Xóa tất cả danh sách
+              </button>
+            </div>
           </div>
         </div>
 
@@ -443,10 +465,10 @@ export default function KiemTraGcnPage() {
         </div>
 
         {/* CỘT 3: BẢNG KẾT LUẬN THẨM ĐỊNH (RIGHT SIDEBAR - 380px) */}
-        <div className="w-full lg:w-96 xl:w-[400px] shrink-0 lg:h-full flex flex-col justify-between bg-white overflow-y-auto p-4 sm:p-5 space-y-4">
-          <div className="space-y-4">
+        <div className="w-full lg:w-96 xl:w-[400px] shrink-0 lg:h-full flex flex-col justify-between bg-white p-3.5 sm:p-4 space-y-3 overflow-hidden">
+          <div className="flex flex-col flex-1 min-h-0 space-y-3">
             {/* Top Compact KPI Badges */}
-            <div className="grid grid-cols-4 gap-1.5 bg-[#F8FAFC] p-2 rounded-xl border border-[#E8EEF3] text-center">
+            <div className="grid grid-cols-4 gap-1.5 bg-[#F8FAFC] p-1.5 rounded-xl border border-[#E8EEF3] text-center shrink-0">
               <div className="p-1">
                 <span className="block text-[10px] text-[#64748B]">Tổng</span>
                 <strong className="text-sm font-bold text-[#003366]">{items.length}</strong>
@@ -465,106 +487,176 @@ export default function KiemTraGcnPage() {
               </div>
             </div>
 
-            {/* Metadata evidence status: no uncalibrated probability or signature claim. */}
-            <div className="space-y-2 rounded-2xl border border-[#E8EEF3] bg-[#F8FAFC] p-4" role="status" aria-live="polite">
-              <div className="flex items-center gap-2 text-sm font-bold text-[#172033]">
-                {isChecking ? <Loader2 className="h-5 w-5 text-[#0077B6] motion-safe:animate-spin" />
-                  : isError ? <AlertCircle className="h-5 w-5 text-red-600" />
-                  : hasAi ? <ShieldAlert className="h-5 w-5 text-amber-700" />
-                  : <ShieldQuestion className="h-5 w-5 text-slate-600" />}
-                <span>{isChecking ? "Đang quét metadata…" : isError ? "Lỗi đọc file" : hasAi ? "Có dấu hiệu AI trong metadata" : "Chưa thấy dấu hiệu AI trong metadata"}</span>
-              </div>
-              <p className="text-xs leading-relaxed text-[#64748B]">
-                {isChecking ? "Chờ hoàn tất trước khi xem kết quả."
-                  : isError ? activeItem?.errorMessage || "Không thể phân tích file này."
-                  : hasAi ? "Metadata có thông tin liên quan đến công cụ AI; thông tin này chưa được xác minh bằng chữ ký số."
-                  : "Thiếu metadata AI không chứng minh ảnh do người tạo hoặc chưa bị sửa chữ."}
-              </p>
-              <p className="text-xs leading-relaxed text-slate-600">Đây là kết quả đọc metadata, chưa phải xác suất ảnh do AI tạo.</p>
-              {activeItem?.result?.evidence.map((evidence, index) => (
-                <p key={index} className="text-xs leading-relaxed text-slate-700">{evidence.label}</p>
-              ))}
-            </div>
-
-            {/* Bằng chứng kỹ thuật số */}
-            <div className="rounded-2xl p-3.5 bg-white border border-[#E8EEF3] shadow-2xs space-y-2.5 text-xs">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#003366] flex items-center gap-1.5">
+            {/* Tab Switcher */}
+            <div className="flex rounded-xl bg-[#F1F5F9] p-1 text-xs font-semibold shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab("compare")}
+                className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === "compare"
+                    ? "bg-white text-[#003366] shadow-2xs font-bold"
+                    : "text-[#64748B] hover:text-[#003366]"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-[#00AEEF]" />
+                <span>So sánh phôi gốc</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("metadata")}
+                className={`flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === "metadata"
+                    ? "bg-white text-[#003366] shadow-2xs font-bold"
+                    : "text-[#64748B] hover:text-[#003366]"
+                }`}
+              >
                 <FileText className="w-3.5 h-3.5 text-[#00AEEF]" />
-                Dấu vết metadata (C2PA/XMP)
-              </h4>
-
-              <div className="space-y-1.5 divide-y divide-[#F1F5F9]">
-                <div className="flex justify-between py-1">
-                  <span className="text-[#64748B]">Nguồn / Phần mềm:</span>
-                  <span className="font-semibold text-[#172033] font-mono text-right max-w-[200px] truncate">
-                    {activeItem?.raw ? provenanceProviderLabel(activeItem.raw) : "Không xác định"}
-                  </span>
-                </div>
-
-                {activeItem?.raw?.model && (
-                  <div className="flex justify-between py-1">
-                    <span className="text-[#64748B]">Chuỗi model:</span>
-                    <span className="font-semibold text-[#172033] font-mono">
-                      {activeItem.raw.model}
-                    </span>
-                  </div>
+                <span>Dấu vết Metadata</span>
+                {hasAi && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-200 animate-pulse" title="Có dấu hiệu AI" />
                 )}
-
-                <div className="flex justify-between py-1">
-                  <span className="text-[#64748B]">Dấu vết C2PA:</span>
-                  <span
-                    className={`font-semibold ${
-                      activeItem?.raw?.hasC2pa ? "text-[#0077B6]" : "text-[#94A3B8]"
-                    }`}
-                  >
-                    {isChecking ? "Đang đọc…" : isError ? "Không đọc được" : activeItem?.raw?.hasC2pa ? "Có · chưa xác minh" : "Chưa thấy"}
-                  </span>
-                </div>
-
-                {activeItem?.raw?.digitalSourceType && (
-                  <div className="flex justify-between py-1">
-                    <span className="text-[#64748B]">IPTC Source:</span>
-                    <span className="font-mono text-[#172033]">
-                      {activeItem.raw.digitalSourceType}
-                    </span>
-                  </div>
-                )}
-              </div>
+              </button>
             </div>
 
-            {activeItem && <DocumentComparisonPanel key={activeItem.id} candidate={activeItem.file} />}
+            {/* Active Tab Content (Scrollable if viewport is small) */}
+            <div className="flex-1 overflow-y-auto pr-0.5 space-y-3">
+              {activeTab === "compare" ? (
+                <div className="space-y-3">
+                  {activeItem && <DocumentComparisonPanel key={activeItem.id} candidate={activeItem.file} />}
+                  <div className="rounded-xl p-2.5 bg-[#F0F9FF] border border-[#BAE6FD] text-[11px] text-[#0369A1] flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 text-[#00AEEF] shrink-0 mt-0.5" />
+                    <p className="leading-relaxed text-[#334155]">
+                      <strong>Quy tắc đối chiếu:</strong> So khớp ma trận pixel giúp phát hiện vùng bị can thiệp chữ độc lập với công cụ sửa. Bản gốc phải do Ban Tổ chức cấp.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Báo cáo Thẩm định Metadata Gộp duy nhất */}
+                  <div
+                    className={`space-y-2 rounded-2xl border p-3.5 text-xs transition-colors ${
+                      isChecking
+                        ? "border-blue-200 bg-blue-50/40"
+                        : isError
+                        ? "border-red-200 bg-red-50/40"
+                        : hasAi
+                        ? "border-amber-200 bg-[#FFFBEB]"
+                        : "border-[#E8EEF3] bg-[#F8FAFC]"
+                    }`}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="flex items-center gap-2 font-bold text-[#172033]">
+                      {isChecking ? (
+                        <Loader2 className="h-4 w-4 text-[#0077B6] motion-safe:animate-spin shrink-0" />
+                      ) : isError ? (
+                        <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                      ) : hasAi ? (
+                        <ShieldAlert className="h-4 w-4 text-amber-700 shrink-0" />
+                      ) : (
+                        <ShieldQuestion className="h-4 w-4 text-slate-600 shrink-0" />
+                      )}
+                      <span>
+                        {isChecking
+                          ? "Đang quét metadata file…"
+                          : isError
+                          ? "Lỗi đọc file"
+                          : hasAi
+                          ? "Phát hiện dấu hiệu AI trong metadata"
+                          : "Chưa thấy dấu hiệu AI trong metadata"}
+                      </span>
+                    </div>
 
-            {/* Quy tắc đối chiếu cán bộ */}
-            <div className="rounded-2xl p-3 bg-[#F0F9FF] border border-[#BAE6FD] text-[11px] text-[#0369A1] space-y-1">
-              <div className="flex items-center gap-1 font-bold text-[#003366]">
-                <Info className="w-3.5 h-3.5 text-[#00AEEF] shrink-0" />
-                <span>Quy tắc đối chiếu:</span>
-              </div>
-              <p className="leading-relaxed text-[#334155]">
-                {hasAi
-                  ? "Phát hiện dấu hiệu AI: Cán bộ nên yêu cầu người nộp giải trình và cung cấp quyết định ban hành văn bản thực tế từ Ban Tổ chức."
-                  : "Thiếu metadata AI không chứng minh ảnh do người tạo (do nén qua Zalo/Facebook). Cần đối chiếu số hiệu thực tế."}
-              </p>
+                    <p className="text-[11px] leading-relaxed text-[#475569]">
+                      {isChecking
+                        ? "Đang trích xuất container JUMBF, IPTC và EXIF..."
+                        : isError
+                        ? activeItem?.errorMessage || "Không thể phân tích file này."
+                        : hasAi
+                        ? "Metadata khai báo có thông tin liên quan đến công cụ AI (chưa xác minh chữ ký). Cán bộ nên yêu cầu người nộp cung cấp quyết định ban hành văn bản thực tế từ Ban Tổ chức."
+                        : "Không tìm thấy dấu vết AI trong metadata. Lưu ý: Ảnh nén qua Zalo/Facebook thường bị xóa sạch metadata; cần đối chiếu số hiệu thực tế."}
+                    </p>
+
+                    <p className="text-[10px] text-slate-500 italic border-t border-slate-200/60 pt-1.5">
+                      * Đây là kết quả đọc metadata chuỗi, chưa phải xác suất hay phán quyết thay con người.
+                    </p>
+
+                    {activeItem?.result?.evidence.map((evidence, index) => (
+                      <div key={index} className="text-[11px] font-medium text-amber-900 bg-amber-100/70 px-2 py-1 rounded-md">
+                        {evidence.label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Bằng chứng kỹ thuật số */}
+                  <div className="rounded-2xl p-3 bg-white border border-[#E8EEF3] shadow-2xs space-y-2 text-xs">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#003366] flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#00AEEF]" />
+                      Dấu vết metadata (C2PA/XMP)
+                    </h4>
+
+                    <div className="space-y-1.5 divide-y divide-[#F1F5F9]">
+                      <div className="flex justify-between py-1">
+                        <span className="text-[#64748B]">Nguồn / Phần mềm:</span>
+                        <span className="font-semibold text-[#172033] font-mono text-right max-w-[200px] truncate">
+                          {activeItem?.raw ? provenanceProviderLabel(activeItem.raw) : "Không xác định"}
+                        </span>
+                      </div>
+
+                      {activeItem?.raw?.model && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-[#64748B]">Chuỗi model:</span>
+                          <span className="font-semibold text-[#172033] font-mono">
+                            {activeItem.raw.model}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between py-1">
+                        <span className="text-[#64748B]">Dấu vết C2PA:</span>
+                        <span
+                          className={`font-semibold ${
+                            activeItem?.raw?.hasC2pa ? "text-[#0077B6]" : "text-[#94A3B8]"
+                          }`}
+                        >
+                          {isChecking ? "Đang đọc…" : isError ? "Không đọc được" : activeItem?.raw?.hasC2pa ? "Có · chưa xác minh" : "Chưa thấy"}
+                        </span>
+                      </div>
+
+                      {activeItem?.raw?.digitalSourceType && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-[#64748B]">IPTC Source:</span>
+                          <span className="font-mono text-[#172033]">
+                            {activeItem.raw.digitalSourceType}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Bottom Action Buttons (Print & Export) */}
-          <div className="pt-3 border-t border-[#E8EEF3] space-y-2">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl bg-[#00AEEF] text-white hover:bg-[#0098D4] shadow-sm transition-colors"
-            >
-              <Printer className="w-4 h-4" /> In biên bản / Lưu PDF
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportMarkdown}
-              className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 text-xs font-semibold rounded-xl bg-white text-[#003366] hover:bg-[#F8FAFC] border border-[#E8EEF3] shadow-2xs transition-colors"
-            >
-              <FileText className="w-4 h-4 text-[#00AEEF]" /> Xuất báo cáo (.md)
-            </button>
+          {/* Sticky Bottom Actions in Column 3 */}
+          <div className="pt-2 border-t border-[#E8EEF3] bg-white shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl bg-[#00AEEF] text-white hover:bg-[#0098D4] shadow-xs transition-colors cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" /> In biên bản
+              </button>
+              <button
+                type="button"
+                onClick={handleExportMarkdown}
+                className="inline-flex items-center justify-center gap-1 py-2 px-3 text-xs font-semibold rounded-xl bg-white text-[#003366] hover:bg-[#F8FAFC] border border-[#E8EEF3] shadow-2xs transition-colors cursor-pointer"
+                title="Tải báo cáo định dạng Markdown"
+              >
+                <FileText className="w-3.5 h-3.5 text-[#00AEEF]" /> Xuất .md
+              </button>
+            </div>
           </div>
         </div>
       </div>

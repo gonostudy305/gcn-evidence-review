@@ -21,7 +21,7 @@ function FilePreview({ file, label }: { file: File; label: string }) {
       <figcaption className="font-semibold text-[#003366]">{label}</figcaption>
       {/* Local blob previews cannot use the server image optimizer. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img ref={imageRef} alt={`${label}: ${file.name}`} className="h-44 w-full rounded-lg border border-slate-200 bg-slate-50 object-contain" />
+      <img ref={imageRef} alt={`${label}: ${file.name}`} className="h-32 sm:h-36 w-full rounded-lg border border-slate-200 bg-slate-50 object-contain" />
       <p className="break-all text-slate-600">{file.name}</p>
     </figure>
   );
